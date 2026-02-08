@@ -1,0 +1,16 @@
+{{- if .Values.persistence.shared.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.persistence.shared.name | default (printf "%s-clawd-shared" (include "openclaw.fullname" .)) }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.shared.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.shared.size }}
+  {{- if .Values.persistence.shared.storageClass }}
+  storageClassName: {{ .Values.persistence.shared.storageClass }}
+  {{- end }}
+{{- end }}

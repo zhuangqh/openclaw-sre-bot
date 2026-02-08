@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "openclaw.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "openclaw.fullname" . }}
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "openclaw.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "openclaw.selectorLabels" . | nindent 8 }}
+    spec:
+      initContainers:
+        # Initialize permissions and copy config using init script
+        - name: init-setup
+          image: "{{ .Values.initImage.repository }}:{{ .Values.initImage.tag }}"
+          command: ["/bin/sh", "/scripts/init-script.sh"]
+          volumeMounts:
+            - name: init-scripts
+              mountPath: /scripts
+            - name: openclaw-config
+              mountPath: /tmp/config
+            - name: clawd-shared
+              mountPath: /home/kasm-user/shared/
+            - name: home-openclaw
+              mountPath: /home/kasm-user/.openclaw
+          securityContext:
+            runAsUser: 0  # Run as root to change ownership
+      containers:
+        - name: openclaw
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag}}"
+          securityContext:
+            runAsUser: 0  # Run as root to change ownership
+            fsGroup: 1000
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            capabilities:
+              add:
+                - SYS_ADMIN
+          env:
+            - name: KUBECONFIG
+              value: /etc/openclaw/kubeconfig
+            - name: OPENCLAW_GATEWAY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "openclaw.fullname" . }}-llm
+                  key: gateway-token
+            # Increase Node.js heap size to prevent OOM
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=1536"
+            - name: DISPLAY
+              value: :1
+            - name: VNCOPTIONS
+              value: -disableBasicAuth
+          ports:
+            - name: novnc
+              containerPort: 6901
+              protocol: TCP
+          volumeMounts:
+            - name: kubeconfig-volume
+              mountPath: /etc/openclaw
+              readOnly: true
+            - name: dshm
+              mountPath: /dev/shm
+            - name: clawd-shared
+              mountPath: /home/kasm-user/shared/
+            - name: home-openclaw
+              mountPath: /home/kasm-user/.openclaw
+            - name: openclaw-config
+              mountPath: /etc/supervisor/conf.d/supervisord.conf
+              subPath: supervisord.conf
+              readOnly: true
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: kubeconfig-volume
+          secret:
+            secretName: {{ include "openclaw.fullname" . }}-external-kubeconfig
+            items:
+              - key: kubeconfig
+                path: kubeconfig
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi
+        - name: clawd-shared
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.shared.name | default (printf "%s-clawd-shared" (include "openclaw.fullname" .)) }}
+        - name: openclaw-config
+          configMap:
+            name: {{ include "openclaw.fullname" . }}-config
+        - name: init-scripts
+          configMap:
+            name: {{ include "openclaw.fullname" . }}-init-scripts
+            defaultMode: 0755
+  volumeClaimTemplates:
+    - metadata:
+        name: home-openclaw
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.persistence.home.size }}
