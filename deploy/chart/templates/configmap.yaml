@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openclaw.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+data:
+  openclaw.json: |
+{{ tpl (.Files.Get "files/openclaw.json5") . | indent 4 }}
+  supervisord.conf: |
+{{ .Files.Get "files/supervisord.conf" | indent 4 }}

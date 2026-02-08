@@ -1,0 +1,110 @@
+  {
+    agents: {
+      defaults: {
+        model: { primary: "{{ .Values.openclaw.primaryModel }}" },
+        models: {
+          "kaito/kimi-k2.5": {},
+          "kaito/gpt-5.1": {},
+        },
+        workspace: "~/clawd/"
+      },
+    },
+    browser: {
+      enabled: true, // default: true
+      remoteCdpTimeoutMs: 1500, // remote CDP HTTP timeout (ms)
+      remoteCdpHandshakeTimeoutMs: 3000, // remote CDP WebSocket handshake timeout (ms)
+      defaultProfile: "openclaw",
+      color: "#FF4500",
+      headless: false,
+      noSandbox: false,
+      attachOnly: false,
+      executablePath: "/usr/bin/google-chrome",
+      profiles: {
+        openclaw: { cdpPort: 18800, color: "#FF4500" },
+      },
+    },
+    models: {
+      mode: "merge",
+      providers: {
+        "kaito": {
+          baseUrl: "{{ .Values.openclaw.kaito.baseUrl }}",
+          apiKey: "{{ .Values.openclaw.kaito.apiKey }}",
+          api: "openai-completions",
+          models: [
+            {
+              id: "kimi-k2.5",
+              name: "Kimi K2.5",
+              reasoning: false,
+              input: ["text"],
+              cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+              contextWindow: 128000,
+              maxTokens: 32000,
+            },
+            {
+              id: "gpt-5.1",
+              name: "gpt-5.1",
+              reasoning: true,
+              input: ["text"],
+              cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+              contextWindow: 128000,
+              maxTokens: 32000,
+            },
+          ],
+        },
+      },
+    },
+    channels: {
+      slack: {
+        enabled: true,
+        botToken: "{{ .Values.openclaw.slack.botToken }}",
+        appToken: "{{ .Values.openclaw.slack.appToken }}",
+        dm: {
+          enabled: true,
+          policy: "pairing", // pairing | allowlist | open | disabled
+          allowFrom: ["*"], // optional; "open" requires ["*"]
+          groupEnabled: true,
+          groupChannels: ["#test", "#playground0"],
+        },
+        channels: {
+          "#test": {
+            allow: true,
+            requireMention: true,
+            allowBots: false,
+            skills: ["docs"],
+            systemPrompt: "Short answers only.",
+          },
+          "#playground0": {
+            allow: true,
+            requireMention: true,
+            allowBots: false,
+            skills: ["docs"],
+            systemPrompt: "Short answers only.",
+          },
+        },
+        historyLimit: 50, // include last N channel/group messages as context (0 disables)
+        allowBots: false,
+        reactionNotifications: "own", // off | own | all | allowlist
+        replyToMode: "off", // off | first | all
+        thread: {
+          historyScope: "thread", // thread | channel
+          inheritParent: false,
+        },
+        actions: {
+          reactions: true,
+          messages: true,
+          pins: true,
+          memberInfo: true,
+          emojiList: true,
+        },
+        slashCommand: {
+          enabled: true,
+          name: "openclaw",
+          sessionPrefix: "slack:slash",
+          ephemeral: true,
+        },
+        textChunkLimit: 4000,
+        chunkMode: "length",
+        mediaMaxMb: 20,
+      },
+    },
+  }
