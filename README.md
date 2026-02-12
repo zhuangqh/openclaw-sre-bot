@@ -14,11 +14,40 @@ The core of this deployment is a containerized environment orchestrated by **sup
 2.  **Desktop Environment**: A graphical interface running inside the container, essential for browser-based automation tasks.
 3.  **OpenClaw Gateway**: The core agent process that interacts with the environment.
 
+    > The Web VNC and Desktop Environment are based on the [CUA Computer Use Environment](https://github.com/trycua/cua/).
+
 **Logical Layers**:
 
 *   **Upper Layer (Slack Bot)**: The interface for user interaction. Commands are received via Slack.
 *   **Core Layer**: The OpenClaw agent running within the desktop environment.
 *   **Lower Layer (LiteLLM Gateway)**: An LLM endpoint proxy (based on LiteLLM) that the agent uses for intelligence.
+
+```text
+      +-----------------------+
+      |      Slack (User)     |
+      +-----------+-----------+
+                  |
+                  v
++------------------------------------------+        +--------------------------+
+|          Container (Supervisord)         |        |   Target K8s Clusters    |
+|                                          |        |                          |
+|  +-------------+      +---------------+  |        |  +--------------------+  |
+|  |   Web VNC   | <--> |  Desktop Env  |  |        |  |     Prod Cluster   |  |
+|  +------+------+      +-------+-------+  |        |  +--------------------+  |
+|         ^                     ^          |        |                          |
+|         |                     |          |Operates|  +--------------------+  |
+|  (Browser Access)     +-------+-------+  |------->|  |    Stage Cluster   |  |
+|                       |    OpenClaw   |  |        |  +--------------------+  |
+|                       |    Gateway    |  |        |                          |
+|                       +-------+-------+  |        +--------------------------+
+|                               |          |
++-------------------------------+----------+
+                                |
+                                v
+                     +--------------------+
+                     |   LiteLLM Gateway  |
+                     +--------------------+
+```
 
 ## Installation
 
